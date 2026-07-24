@@ -1,3 +1,5 @@
+import Foundation
+
 /// Manages a connection task for a PowerSync database.
 actor SyncCoordinator {
     nonisolated let streams = StreamTracker()
@@ -10,14 +12,10 @@ actor SyncCoordinator {
 
         func defaultHttpClient() -> HttpClient {
             let session = options.clientConfiguration?.urlSession ?? .shared
-            return PlatformHttpClient(session: session)
-        }
-        
-        var client = client ?? defaultHttpClient()
-        if let logger = options.clientConfiguration?.requestLogger {
-            client = LoggingClient(inner: client, logger: logger)
+            return session.client
         }
 
+        let client = client ?? defaultHttpClient()
         let sync = StreamingSyncClient(db: db, connector: connector, httpClient: client, options: options)
         activeSync = sync.run()
     }
