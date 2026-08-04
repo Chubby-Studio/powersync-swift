@@ -101,7 +101,7 @@ final class AsyncConnectionPool: SQLiteConnectionPoolProtocol {
     }
 
     private func configureConnection(connection: borrowing RawSqliteConnection, isWriter: Bool) throws {
-        let context = connection.asLease()
+        let context = try connection.asLease()
         for stmt in initialStatements {
             let _ = try context.execute(sql: stmt, parameters: [])
         }
@@ -221,7 +221,6 @@ final class AsyncConnectionPool: SQLiteConnectionPoolProtocol {
 
     private actor PoolOpener {
         private var pool: NativeConnectionPool? = nil
-        private var isClosed = false
 
         func obtainPool(pool context: AsyncConnectionPool) async throws -> NativeConnectionPool {
             if let pool {
@@ -246,11 +245,6 @@ final class AsyncConnectionPool: SQLiteConnectionPoolProtocol {
         }
 
         func close() async throws {
-            if isClosed {
-                return
-            }
-
-            isClosed = true
             if let pool {
                 try await pool.close()
             }
