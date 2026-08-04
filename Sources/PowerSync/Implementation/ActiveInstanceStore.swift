@@ -44,9 +44,10 @@ private final class ActiveDatabaseGroupData: Sendable {
 /// Additionally, we want to avoid two databases in the same group having a sync stream open at the same time to avoid
 /// duplicate resources being used. For this reason, each active database group has a single sync coordinator actor
 /// responsible for initializing the sync process for all databases in the group.
-final class ActiveDatabaseGroup: Sendable {
+final class ActiveDatabaseGroup: @unchecked Sendable {
+// unchecked sendable because we need to use weak var (our minimum Swift version is 6.1, weak let was introduced in 6.3).
     fileprivate let data: ActiveDatabaseGroupData
-    private weak let collection: DatabaseGroupCollection?
+    private weak var collection: DatabaseGroupCollection?
 
     fileprivate init(data: ActiveDatabaseGroupData, collection: DatabaseGroupCollection) {
         self.data = data
