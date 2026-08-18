@@ -11,40 +11,56 @@ final class NativeConnectionPool: Sendable {
     private let readers: AsyncSemaphore<RawSqliteConnection>?
     private let handleUpdates: @Sendable (_: Set<String>) -> ()
     private let logger: any LoggerProtocol
+    /// Set when the database is shared with other processes, in which case writes also append
+    /// the tables they changed to the update log and notify the other processes.
+    private let updateLog: CrossProcessUpdateLog?
 
     init(
         writer: consuming RawSqliteConnection,
         readers: consuming RigidDeque<RawSqliteConnection>,
         logger: any LoggerProtocol,
+        updateLog: CrossProcessUpdateLog? = nil,
         handleUpdates: @escaping @Sendable (_: Set<String>) -> (),
     ) {
         self.writer = AsyncSemaphore(singleElement: writer)
         self.readers = AsyncSemaphore(readers)
         self.handleUpdates = handleUpdates
         self.logger = logger
+        self.updateLog = updateLog
     }
     
     init(
         singleConnection: consuming RawSqliteConnection,
         logger: any LoggerProtocol,
+        updateLog: CrossProcessUpdateLog? = nil,
         handleUpdates: @escaping @Sendable (_: Set<String>) -> (),
     ) {
         self.writer = AsyncSemaphore(singleElement: singleConnection)
         self.readers = nil
         self.handleUpdates = handleUpdates
         self.logger = logger
+        self.updateLog = updateLog
     }
 
     private func dispatchWrites(lease: NativeConnectionLease) {
         do {
             try lease.withIterator(sql: "SELECT powersync_update_hooks('get')", parameters: []) { rows in
-                let affectedTables = try rows.next {
+                guard var affectedTables = try rows.next(callback: {
                     let decoder = JSONDecoder()
                     return try decoder.decode(Set<String>.self, from: try $0.getString(index: 0).data(using: .utf8)!)
+                }) else {
+                    return
                 }
 
-                if let affectedTables, !affectedTables.isEmpty {
-                    self.handleUpdates(affectedTables)
+                // Our own writes to the update log must not feed back into the machinery.
+                affectedTables.remove(CrossProcessUpdateLog.tableName)
+                guard !affectedTables.isEmpty else {
+                    return
+                }
+
+                self.handleUpdates(affectedTables)
+                if let updateLog, updateLog.record(tables: affectedTables, lease: lease) {
+                    updateLog.signal.post()
                 }
             }
         } catch {
