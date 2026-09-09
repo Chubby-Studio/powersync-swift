@@ -2193,11 +2193,9 @@ class InMemorySyncIntegrationTests {
     }
 
     @Test func subscriptionAddedWhileConnectingReconnects() async throws {
-        // A subscription added after `connect()` returned but before the first `/sync/stream`
-        // response arrived used to be applied only on the next keep-alive line from the service,
-        // typically 20 seconds later: the change was dispatched before the sync iteration was
-        // listening for local events. Nothing here sends a keep-alive, so the reconnect has to
-        // come from the subscription change itself.
+        // Regression test: a subscription added after `connect()` returned but before the first
+        // `/sync/stream` response arrived must trigger a reconnect on its own. Nothing here sends a
+        // keep-alive, so the second request can only come from the subscription change.
         let firstRequestStarted = Signal()
         let releaseFirstResponse = Signal()
         let requests = AsyncMutex<[JsonParam]>([])
@@ -2214,7 +2212,9 @@ class InMemorySyncIntegrationTests {
             return AsyncThrowingChannel<Data, any Error>()
         })
 
-        try await db.connect(connector: TestConnector(), options: ConnectOptions())
+        // A short retry delay keeps the 5 s polling budget below independent of how the reconnect
+        // is scheduled.
+        try await db.connect(connector: TestConnector(), options: ConnectOptions(retryDelay: 0.1))
         await firstRequestStarted.await()
 
         // The first request is in flight and its response has not arrived yet.

@@ -2,11 +2,8 @@
 
 ## Unreleased
 
-* Fix sync stream subscriptions changed while a connection was being established (after
-  `connect()` returned and before the first `/sync/stream` response arrived) taking effect only
-  on the next keep-alive line from the service, typically 20 seconds later. The change
-  notification was dispatched before the sync iteration started listening for local events, so
-  it was dropped and the core extension never learned about it until its periodic check.
+* Fix sync stream subscriptions changed while the connection was still being established only
+  taking effect on the next keep-alive line from the service, typically 20 seconds later.
 
 ## 1.16.1
 
