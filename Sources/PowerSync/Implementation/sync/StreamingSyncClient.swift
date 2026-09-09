@@ -514,10 +514,6 @@ private struct ActiveSyncIteration: Sendable {
             signals.markPendingCheckpointRequestsRequiringAffirmation()
         }
 
-        // Subscribe to local events before the watchers below start dispatching them: `BroadcastStream`
-        // only delivers to listeners that already exist, and the subscription buffers everything until
-        // the control loop drains it once the sync stream is established. Otherwise a subscription
-        // change made while the request is in flight is only picked up on the next keep-alive line.
         let pendingLocalEvents = localEvents.subscribe()
 
         // Notify the core extension for changed Sync Stream subscriptions, as we might have to reconnect.

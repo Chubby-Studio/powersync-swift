@@ -2212,9 +2212,7 @@ class InMemorySyncIntegrationTests {
             return AsyncThrowingChannel<Data, any Error>()
         })
 
-        // A short retry delay keeps the 5 s polling budget below independent of how the reconnect
-        // is scheduled.
-        try await db.connect(connector: TestConnector(), options: ConnectOptions(retryDelay: 0.1))
+        try await db.connect(connector: TestConnector(), options: ConnectOptions())
         await firstRequestStarted.await()
 
         // The first request is in flight and its response has not arrived yet.

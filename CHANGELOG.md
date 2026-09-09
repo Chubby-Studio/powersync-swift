@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.16.2
 
 * Fix sync stream subscriptions changed while the connection was still being established only
   taking effect on the next keep-alive line from the service, typically 20 seconds later.
